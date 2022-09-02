@@ -11,7 +11,7 @@ import yaml
 def main(input, output,
          pattern_size=(7, 4),
          debug_dir=None,
-         corners=None,
+         corners_f=None,
          framestep=20,
          max_frames=None,
          **_):
@@ -66,8 +66,8 @@ def main(input, output,
             cv2.drawChessboardCorners(img_chess, pattern_size, corners, found)
             cv2.imwrite(os.path.join(debug_dir, '%04d.png' % frame), img_chess)
 
-    if corners is not None:
-        with open(corners, 'wb') as fw:
+    if corners_f is not None:
+        with open(corners_f, 'wb') as fw:
             pickle.dump(img_points, fw)
             pickle.dump(obj_points, fw)
             pickle.dump((w, h), fw)
@@ -95,7 +95,7 @@ def main(input, output,
     # print "distortion coefficients: ", dist_coefs.ravel()
 
     calibration = {'rms': rms, 'camera_matrix': camera_matrix.tolist(), 'dist_coefs': dist_coefs.tolist()}
-    with open(args.out, 'w') as fw:
+    with open(output, 'w') as fw:
         yaml.dump(calibration, fw)
 
 if __name__ == '__main__':
@@ -105,7 +105,7 @@ if __name__ == '__main__':
     parser.add_argument('--pattern_size', '-ps', nargs=2, help='pattern grid size (nb colums, nb rows)', default=[7, 4], type=int)
     parser.add_argument('--debug-dir', help='path to directory where images with detected chessboard will be written',
                         default=None)
-    parser.add_argument('-c', '--corners', help='output corners file', default=None)
+    parser.add_argument('-c', '--corners_f', help='output corners file', default=None)
     parser.add_argument('-fs', '--framestep', help='use every nth frame in the video', default=20, type=int)
     parser.add_argument('-max', '--max-frames', help='limit the number of frames used for calibration', default=None, type=int)
     args = parser.parse_args()
