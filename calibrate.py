@@ -8,28 +8,21 @@ import cv2
 import numpy as np
 import yaml
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Calibrate camera using a video of a chessboard or a sequence of images.')
-    parser.add_argument('input', help='input video file or glob mask')
-    parser.add_argument('out', help='output calibration yaml file')
-    parser.add_argument('--debug-dir', help='path to directory where images with detected chessboard will be written',
-                        default=None)
-    parser.add_argument('-c', '--corners', help='output corners file', default=None)
-    parser.add_argument('-fs', '--framestep', help='use every nth frame in the video', default=20, type=int)
-    parser.add_argument('-max', '--max-frames', help='limit the number of frames used for calibration', default=None, type=int)
-    # parser.add_argument('--figure', help='saved visualization name', default=None)
-    args = parser.parse_args()
+def main(input, output,
+         pattern_size=(7, 4),
+         debug_dir=None,
+         corners=None,
+         framestep=20,
+         max_frames=None,
+         **_):
 
-    if '*' in args.input:
-        source = glob(args.input)
+    if '*' in input:
+        source = glob(input)
     else:
-        source = cv2.VideoCapture(args.input)
-    # square_size = float(args.get('--square_size', 1.0))
+        source = cv2.VideoCapture(input)
 
-    pattern_size = (9, 6)
     pattern_points = np.zeros((np.prod(pattern_size), 3), np.float32)
     pattern_points[:, :2] = np.indices(pattern_size).T.reshape(-1, 2)
-    # pattern_points *= square_size
 
     obj_points = []
     img_points = []
@@ -48,7 +41,7 @@ if __name__ == '__main__':
             retval, img = source.read()
             if not retval:
                 break
-            if frame % args.framestep != 0:
+            if frame % framestep != 0:
                 continue
 
         print(f'Searching for chessboard in frame {frame}... ', end='')
@@ -62,19 +55,19 @@ if __name__ == '__main__':
             img_points.append(corners.reshape(1, -1, 2))
             obj_points.append(pattern_points.reshape(1, -1, 3))
             print('ok')
-            if args.max_frames is not None and used_frames >= args.max_frames:
+            if max_frames is not None and used_frames >= max_frames:
                 print(f'Found {used_frames} frames with the chessboard.')
                 break
         else:
             print('not found')
 
-        if args.debug_dir:
+        if debug_dir is not None:
             img_chess = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
             cv2.drawChessboardCorners(img_chess, pattern_size, corners, found)
-            cv2.imwrite(os.path.join(args.debug_dir, '%04d.png' % frame), img_chess)
+            cv2.imwrite(os.path.join(debug_dir, '%04d.png' % frame), img_chess)
 
-    if args.corners:
-        with open(args.corners, 'wb') as fw:
+    if corners is not None:
+        with open(corners, 'wb') as fw:
             pickle.dump(img_points, fw)
             pickle.dump(obj_points, fw)
             pickle.dump((w, h), fw)
@@ -104,3 +97,18 @@ if __name__ == '__main__':
     calibration = {'rms': rms, 'camera_matrix': camera_matrix.tolist(), 'dist_coefs': dist_coefs.tolist()}
     with open(args.out, 'w') as fw:
         yaml.dump(calibration, fw)
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Calibrate camera using a video of a chessboard or a sequence of images.')
+    parser.add_argument('input', help='input video file or glob mask')
+    parser.add_argument('output', help='output calibration yaml file')
+    parser.add_argument('--pattern_size', '-ps', nargs=2, help='pattern grid size (nb colums, nb rows)', default=[7, 4], type=int)
+    parser.add_argument('--debug-dir', help='path to directory where images with detected chessboard will be written',
+                        default=None)
+    parser.add_argument('-c', '--corners', help='output corners file', default=None)
+    parser.add_argument('-fs', '--framestep', help='use every nth frame in the video', default=20, type=int)
+    parser.add_argument('-max', '--max-frames', help='limit the number of frames used for calibration', default=None, type=int)
+    args = parser.parse_args()
+
+    main(**vars(args))
+    print('exiting')
